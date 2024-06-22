@@ -1,0 +1,41 @@
+version: '3.3'
+services:
+  namenode:
+    image: apache/hadoop
+    container_name: namenode
+    environment:
+      - CLUSTER_NAME=test
+    ports:
+      - 9870:9870
+      - 9000:9000
+    networks:
+      - hadoop-net
+    command: namenode
+
+  datanode1:
+    image: apache/hadoop
+    container_name: datanode1
+    environment:
+      - CLUSTER_NAME=test
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+    ports:
+      - 9864:9864
+    networks:
+      - hadoop-net
+    command: datanode
+
+  datanode2:
+    image: apache/hadoop
+    container_name: datanode2
+    environment:
+      - CLUSTER_NAME=test
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+    ports:
+      - 9865:9864
+    networks:
+      - hadoop-net
+    command: datanode
+
+networks:
+  hadoop-net:
+    driver: bridge
