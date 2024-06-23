@@ -66,12 +66,8 @@ services:
       - ./postgres-db-pgadmin/dump/.pgpass.conf:/pgadmin4/pgpass
     # Grant permissions to pgpass
     entrypoint: >
-      sh -c "
-      cp -f /pgadmin4/pgpass /var/lib/pgadmin;
-      chmod 600 /var/lib/pgadmin/pgpass;
-      /entrypoint.sh
-      "
- 
+      sh -c " cp -f /pgadmin4/pgpass /var/lib/pgadmin; chmod 600 /var/lib/pgadmin/pgpass; /entrypoint.sh "
+
   # Service for python application
   python-application:
     # Container name
@@ -89,7 +85,7 @@ services:
     #Set restart to always
     restart: always
 
-    # Share container postgre-app with db
+    # Share container network with postgres-db through postgre-app
     networks:
       - postgre-app
 
@@ -97,10 +93,30 @@ services:
     volumes:
       - ./python-application:/app:bind
 
+  spark-master:
+    image: docker.io/bitnami/spark:3.5
+    # Get environment from development.env
+    env_file:
+      - ./spark/spark-master/config/development.env
+    # Share container network with spark cluster through spark-cluster
+    networks:
+      - spark-cluster
+
+  spark-worker:
+    image: docker.io/bitnami/spark:3.5
+    # Get environment from development.env
+    env_file:
+      - ./spark/spark-worker/config/development.env
+    # Share container network with spark cluster through spark-cluster
+    networks:
+      - spark-cluster
+
 networks:
   postgre-pgadmin:
     driver: bridge
   postgre-app:
+    driver: bridge
+  spark-cluster:
     driver: bridge
 
 volumes:
@@ -108,4 +124,3 @@ volumes:
     driver: local
   postgresql-data:
     driver: local
-
