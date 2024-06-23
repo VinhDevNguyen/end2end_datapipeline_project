@@ -53,9 +53,9 @@ services:
     env_file:
       - ./postgres-db-pgadmin/config/development.env
 
-    #Forward port 8888 from localhost to port 80 in container
+    #Forward port 8880 from localhost to port 80 in container
     ports:
-      - "8888:80"
+      - "8880:80"
 
     #Mount volume pgadmin-data to directory at the /var/lib/pgadmin path
     volumes:
@@ -93,8 +93,14 @@ services:
     volumes:
       - ./python-application:/app:bind
 
+  # Service for spark master node
   spark-master:
-    image: docker.io/bitnami/spark:3.5
+    # Container name
+    container_name: spark-master
+    # Build context 
+    build:
+      context: ./spark/spark-master
+      dockerfile: dockerfile
     # Get environment from development.env
     env_file:
       - ./spark/spark-master/config/development.env
@@ -102,12 +108,39 @@ services:
     networks:
       - spark-cluster
 
+  # Service for spark worker node
   spark-worker:
-    image: docker.io/bitnami/spark:3.5
+    # Container name
+    container_name: spark-worker
+    # Build context 
+    build:
+      context: ./spark/spark-worker
+      dockerfile: dockerfile
     # Get environment from development.env
     env_file:
       - ./spark/spark-worker/config/development.env
     # Share container network with spark cluster through spark-cluster
+    networks:
+      - spark-cluster
+
+  # Service for spark notebook
+  spark-notebook:
+    # Container name
+    container_name: spark-notebook
+    # Build context 
+    build:
+      context: ./spark/spark-notebook
+      dockerfile: dockerfile
+    # Set user to root
+    user: root
+    env_file:
+      - ./spark/spark-notebook/config/development.env
+    # volumes:
+    #   - ./notebooks:/home/jovyan/work
+    #   - ./notebooks/spark-defaults.conf:/usr/local/spark/conf/spark-defaults.conf
+    ports:
+      - "8888:8888"
+      - "4040:4040"
     networks:
       - spark-cluster
 
