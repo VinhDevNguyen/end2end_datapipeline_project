@@ -1,0 +1,111 @@
+services:
+  # Service for postgres database instance
+  postgres-db:
+    #Container name
+    container_name: postgres-db
+
+    #Build context 
+    build:
+      context: ./postgres
+      dockerfile: dockerfile
+
+    #Set restart to always
+    restart: always
+
+    # Share container network with pgadmin through postgre-pgadmin
+    # Share container network with postgre-app through postgre-app
+    networks:
+      - postgre-pgadmin
+      - postgre-app
+
+    # Get environment from development.env
+    env_file:
+      - ./postgres/config/development.env
+
+    # Mount volume postgresql-data to directory at the /bitnami/postgresql path
+    # Mount init scripts for postgresql instance to run at start up
+    volumes:
+      - postgresql-data:/bitnami/postgresql
+      - ./postgres/init_scripts:/docker-entrypoint-initdb.d
+
+  # Service for pgadmin instance
+  postgres-db-pgadmin:
+    #Container name
+    container_name: postgres-db-pgadmin
+
+    #Build context 
+    build:
+      context: ./postgres-db-pgadmin
+      dockerfile: dockerfile
+
+    #Set restart to always
+    restart: always
+
+    #Depend on service postgres-db to successfully init before starting up
+    depends_on:
+      - postgres-db
+
+    # Share container network with postgres-db through postgre-pgadmin
+    networks:
+      - postgre-pgadmin
+
+    # Get environment from development.env
+    env_file:
+      - ./postgres-db-pgadmin/config/development.env
+
+    #Forward port 8888 from localhost to port 80 in container
+    ports:
+      - "8888:80"
+
+    #Mount volume pgadmin-data to directory at the /var/lib/pgadmin path
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+      # Mount servers json 
+      - ./postgres-db-pgadmin/dump/servers.json:/pgadmin4/servers.json
+      # Mount pg password to servers
+      - ./postgres-db-pgadmin/dump/.pgpass.conf:/pgadmin4/pgpass
+    # Grant permissions to pgpass
+    entrypoint: >
+      sh -c "
+      cp -f /pgadmin4/pgpass /var/lib/pgadmin;
+      chmod 600 /var/lib/pgadmin/pgpass;
+      /entrypoint.sh
+      "
+ 
+  # Service for python application
+  python-application:
+    # Container name
+    container_name: python-application
+
+    # Build context 
+    build:
+      context: ./python-application
+      dockerfile: dockerfile
+
+    # Get environment from development.env
+    env_file:
+      - ./python-application/config/development.env
+
+    #Set restart to always
+    restart: always
+
+    # Share container postgre-app with db
+    networks:
+      - postgre-app
+
+    #Mount volume
+    volumes:
+      - ./python-application:/app:bind
+
+networks:
+  postgre-pgadmin:
+    driver: bridge
+  postgre-app:
+    driver: bridge
+
+volumes:
+  pgadmin-data:
+    driver: local
+  postgresql-data:
+    driver: local
+
