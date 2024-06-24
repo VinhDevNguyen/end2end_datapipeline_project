@@ -101,9 +101,14 @@ services:
     build:
       context: ./spark/spark-master
       dockerfile: dockerfile
+    ports:
+      - '8078:8080'
     # Get environment from development.env
     env_file:
       - ./spark/spark-master/config/development.env
+    # Mount configuration files
+    volumes:
+      - ./spark/spark-master/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
     # Share container network with spark cluster through spark-cluster
     networks:
       - spark-cluster
@@ -135,14 +140,93 @@ services:
     user: root
     env_file:
       - ./spark/spark-notebook/config/development.env
-    # volumes:
-    #   - ./notebooks:/home/jovyan/work
-    #   - ./notebooks/spark-defaults.conf:/usr/local/spark/conf/spark-defaults.conf
+    # Mount configuration files
+    volumes:
+      - ./spark/spark-notebook/spark-defaults.conf:/usr/local/spark/conf/spark-defaults.conf
     ports:
       - "8888:8888"
       - "4040:4040"
     networks:
       - spark-cluster
+
+  # Service for Kafka - Kafka broker 0
+  kafka-broker-0:
+    container_name: kafka-broker-0
+    image: bitnami/kafka
+    # Connect to kafka-cluster network
+    networks:
+      - kafka-cluster
+    # Add volume for kafka data
+    volumes:
+      - kafka_0_data:/bitnami/kafka
+    # Environment file
+    env_file:
+      - ./kafka/broker-0/config/development.env
+    healthcheck:
+      test: "bash -c 'printf \"\" > /dev/tcp/127.0.0.1/9092; exit $$?;'"
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Services for kafka - Kafka broker 1
+  kafka-broker-1:
+    container_name: kafka-broker-1
+    image: bitnami/kafka
+    # Connect to kafka-cluster network
+    networks:
+      - kafka-cluster
+    volumes:
+      # Add volume for kafka data
+      - kafka_1_data:/bitnami/kafka
+    env_file:
+      - ./kafka/broker-1/config/development.env
+    healthcheck:
+      test: "bash -c 'printf \"\" > /dev/tcp/127.0.0.1/9092; exit $$?;'"
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Schema registry 
+  kafka-schema-registry:
+    container_name: kafka-schema-registry
+    image: bitnami/schema-registry
+    # Connect to kafka-cluster network
+    networks:
+      - kafka-cluster
+    # Service depends on kafka cluster to sucessfully spin up
+    depends_on:
+      - kafka-broker-0
+      - kafka-broker-1
+    env_file:
+      - ./kafka/schema-registry/config/development.env
+
+  #Kafka ui service
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui
+    env_file:
+      - ./kafka/ui/config/development.env
+    volumes:
+      - ./kafka/ui/config.yml:/etc/kafkaui/dynamic_config.yaml
+    # Service depends on kafka cluster to sucessfully spin up
+    depends_on:
+      - kafka-broker-0
+      - kafka-broker-1
+      - kafka-schema-registry
+    # Connect to kafka-cluster network
+    networks:
+      - kafka-cluster
+    # Map ports
+    ports:
+      - "8879:8080"
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider localhost:8080 || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 networks:
   postgre-pgadmin:
@@ -151,9 +235,15 @@ networks:
     driver: bridge
   spark-cluster:
     driver: bridge
+  kafka-cluster:
+    driver: bridge
 
 volumes:
   pgadmin-data:
     driver: local
   postgresql-data:
+    driver: local
+  kafka_0_data:
+    driver: local
+  kafka_1_data:
     driver: local

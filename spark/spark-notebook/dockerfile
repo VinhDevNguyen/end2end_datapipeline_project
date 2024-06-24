@@ -12,3 +12,6 @@ RUN curl -O https://dlcdn.apache.org/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.t
     && rm -rf /usr/local/spark-3.5.0-bin-hadoop3 \
     && ln -s /usr/local/spark-3.5.1-bin-hadoop3 /usr/local/spark
 
+# Install delta spark for spark to use delta lake open table format
+RUN curl -O https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/3.2.0/delta-spark_2.12-3.2.0.jar \
+    && mv delta-spark_2.12-3.2.0.jar /usr/local/spark/jars  \
