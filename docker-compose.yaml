@@ -112,6 +112,7 @@ services:
     # Share container network with spark cluster through spark-cluster
     networks:
       - spark-cluster
+      - spark-hadoop
 
   # Service for spark worker node
   spark-worker:
@@ -127,6 +128,7 @@ services:
     # Share container network with spark cluster through spark-cluster
     networks:
       - spark-cluster
+      - spark-hadoop
 
   # Service for spark notebook
   spark-notebook:
@@ -142,12 +144,14 @@ services:
       - ./spark/spark-notebook/config/development.env
     # Mount configuration files
     volumes:
+      - ./spark/spark-notebook/notebooks:/home/jovyan/work
       - ./spark/spark-notebook/spark-defaults.conf:/usr/local/spark/conf/spark-defaults.conf
     ports:
       - "8888:8888"
       - "4040:4040"
     networks:
       - spark-cluster
+      - spark-hadoop
 
   # Service for Kafka - Kafka broker 0
   kafka-broker-0:
@@ -228,6 +232,51 @@ services:
       retries: 3
       start_period: 30s
 
+  # Services for hadoop cluster
+  namenode:
+    image: apache/hadoop:3
+    hostname: namenode
+    command: ["hdfs", "namenode"]
+    ports:
+      - 9870:9870
+    env_file:
+      - ./hdfs/config
+    environment:
+        ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
+    networks:
+      - hadoop-cluster
+      - spark-hadoop
+
+  datanode:
+    image: apache/hadoop:3
+    command: ["hdfs", "datanode"]
+    env_file:
+      - ./hdfs/config   
+    networks:
+      - hadoop-cluster
+      - spark-hadoop 
+
+  resourcemanager:
+    image: apache/hadoop:3
+    hostname: resourcemanager
+    command: ["yarn", "resourcemanager"]
+    ports:
+        - 8088:8088
+    env_file:
+      - ./hdfs/config
+    networks:
+      - hadoop-cluster
+      - spark-hadoop
+
+  nodemanager:
+    image: apache/hadoop:3
+    command: ["yarn", "nodemanager"]
+    env_file:
+      - ./hdfs/config
+    networks:
+      - hadoop-cluster
+      - spark-hadoop
+
 networks:
   postgre-pgadmin:
     driver: bridge
@@ -236,6 +285,10 @@ networks:
   spark-cluster:
     driver: bridge
   kafka-cluster:
+    driver: bridge
+  hadoop-cluster:
+    driver: bridge
+  spark-hadoop:
     driver: bridge
 
 volumes:
