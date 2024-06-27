@@ -1,17 +1,62 @@
-FROM jupyter/all-spark-notebook:python-3.11.6
+# FROM jupyter/all-spark-notebook:python-3.11.6
 
-# Use user root
-USER root 
+# # Use user root
+# USER root 
 
-# Change spark version from 3.5.0 to 3.5.1 to match spark cluster version
-RUN curl -O https://dlcdn.apache.org/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz  \
-    && tar zxvf spark-3.5.1-bin-hadoop3.tgz \
-    && rm -rf spark-3.5.1-bin-hadoop3.tgz \
-    && mv spark-3.5.1-bin-hadoop3/ /usr/local/ \
-    && rm -rf /usr/local/spark \
-    && rm -rf /usr/local/spark-3.5.0-bin-hadoop3 \
-    && ln -s /usr/local/spark-3.5.1-bin-hadoop3 /usr/local/spark
+# # Change spark version from 3.5.0 to 3.5.1 to match spark cluster version
+# RUN curl -O https://dlcdn.apache.org/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz  \
+#     && tar zxvf spark-3.5.1-bin-hadoop3.tgz \
+#     && rm -rf spark-3.5.1-bin-hadoop3.tgz \
+#     && mv spark-3.5.1-bin-hadoop3/ /usr/local/ \
+#     && rm -rf /usr/local/spark \
+#     && rm -rf /usr/local/spark-3.5.0-bin-hadoop3 \
+#     && ln -s /usr/local/spark-3.5.1-bin-hadoop3 /usr/local/spark
 
-# Install delta spark for spark to use delta lake open table format
-RUN curl -O https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/3.2.0/delta-spark_2.12-3.2.0.jar \
-    && mv delta-spark_2.12-3.2.0.jar /usr/local/spark/jars  \
+# # Install delta spark for spark to use delta lake open table format
+# RUN curl -O https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/3.2.0/delta-spark_2.12-3.2.0.jar \
+#     && mv delta-spark_2.12-3.2.0.jar /usr/local/spark/jars  \
+
+
+ARG debian_buster_image_tag=8-jre-slim
+FROM openjdk:${debian_buster_image_tag}
+
+ARG scala_version="2.12.10"
+ARG build_date
+ARG shared_workspace=/opt/workspace
+
+RUN mkdir -p ${shared_workspace}/data
+RUN mkdir -p /usr/share/man/man1
+RUN apt-get update -y
+RUN apt-get install -y curl python3 r-base
+RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN curl https://downloads.lightbend.com/scala/2.12.10/scala-${scala_version}.deb -k -o scala.deb
+RUN apt install -y ./scala.deb
+RUN rm -rf scala.deb /var/lib/apt/lists/*
+
+ENV SCALA_HOME="/usr/bin/scala"
+ENV PATH=${PATH}:${SCALA_HOME}/bin
+ENV SHARED_WORKSPACE=${shared_workspace}
+
+VOLUME ${shared_workspace}
+CMD ["bash"]
+
+ARG build_date
+ARG spark_version="3.0.0"
+ARG scala_version="2.12.10"
+ARG jupyterlab_version="3.0.0"
+ARG scala_kernel_version="0.10.9"
+
+#JupyterLab + Python kernel for PySpark
+COPY workspace/ /workspace/
+
+RUN apt-get update -y
+RUN apt-get install -y python3-pip python3-dev
+RUN pip3 install --upgrade pip
+RUN pip3 install wget==3.2 pyspark==${spark_version} jupyterlab==${jupyterlab_version}
+RUN pip3 install pandas
+
+
+EXPOSE 8888
+
+WORKDIR /workspace
+CMD jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=
