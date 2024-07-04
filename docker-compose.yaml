@@ -1,97 +1,104 @@
 services:
-  # # Service for postgres database instance
-  # postgres-db:
-  #   #Container name
-  #   container_name: postgres-db
+  # Service for postgres database instance
+  postgres-db:
+    #Container name
+    container_name: postgres-db
 
-  #   #Build context 
-  #   build:
-  #     context: ./postgres
-  #     dockerfile: dockerfile
+    #Build context 
+    build:
+      context: ./postgres
+      dockerfile: dockerfile
 
-  #   #Set restart to always
-  #   restart: always
+    #Set restart to always
+    restart: always
 
-  #   # Share container network with pgadmin through postgre-pgadmin
-  #   # Share container network with postgre-app through postgre-app
-  #   networks:
-  #     - postgre-pgadmin
-  #     - postgre-app
+    # Share container network with pgadmin through postgre-pgadmin
+    # Share container network with postgre-app through postgre-app
+    # Share container network with airflow
+    networks:
+      - postgre-pgadmin
+      - postgre-app
+      - airflow
+    # Get environment from development.env
+    env_file:
+      - ./postgres/config/development.env
 
-  #   # Get environment from development.env
-  #   env_file:
-  #     - ./postgres/config/development.env
+    # Mount volume postgresql-data to directory at the /bitnami/postgresql path
+    # Mount init scripts for postgresql instance to run at start up
+    volumes:
+      - postgresql-data:/bitnami/postgresql
+      - ./postgres/init_scripts:/docker-entrypoint-initdb.d
+    # healthcheck for user airflow
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "airflow" ]
+      interval: 10s
+      retries: 5
+      start_period: 5s
 
-  #   # Mount volume postgresql-data to directory at the /bitnami/postgresql path
-  #   # Mount init scripts for postgresql instance to run at start up
-  #   volumes:
-  #     - postgresql-data:/bitnami/postgresql
-  #     - ./postgres/init_scripts:/docker-entrypoint-initdb.d
+  # Service for pgadmin instance
+  postgres-db-pgadmin:
+    #Container name
+    container_name: postgres-db-pgadmin
 
-  # # Service for pgadmin instance
-  # postgres-db-pgadmin:
-  #   #Container name
-  #   container_name: postgres-db-pgadmin
+    #Build context 
+    build:
+      context: ./postgres-db-pgadmin
+      dockerfile: dockerfile
 
-  #   #Build context 
-  #   build:
-  #     context: ./postgres-db-pgadmin
-  #     dockerfile: dockerfile
+    #Set restart to always
+    restart: always
 
-  #   #Set restart to always
-  #   restart: always
+    #Depend on service postgres-db to successfully init before starting up
+    depends_on:
+      - postgres-db
 
-  #   #Depend on service postgres-db to successfully init before starting up
-  #   depends_on:
-  #     - postgres-db
+    # Share container network with postgres-db through postgre-pgadmin
+    networks:
+      - postgre-pgadmin
 
-  #   # Share container network with postgres-db through postgre-pgadmin
-  #   networks:
-  #     - postgre-pgadmin
+    # Get environment from development.env
+    env_file:
+      - ./postgres-db-pgadmin/config/development.env
 
-  #   # Get environment from development.env
-  #   env_file:
-  #     - ./postgres-db-pgadmin/config/development.env
+    #Forward port 8880 from localhost to port 80 in container
+    ports:
+      - "8880:80"
 
-  #   #Forward port 8880 from localhost to port 80 in container
-  #   ports:
-  #     - "8880:80"
+    #Mount volume pgadmin-data to directory at the /var/lib/pgadmin path
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+      # Mount servers json 
+      - ./postgres-db-pgadmin/dump/servers.json:/pgadmin4/servers.json
+      # Mount pg password to servers
+      - ./postgres-db-pgadmin/dump/.pgpass.conf:/pgadmin4/pgpass
+    # Grant permissions to pgpass
+    entrypoint: >
+      sh -c " cp -f /pgadmin4/pgpass /var/lib/pgadmin; chmod 600 /var/lib/pgadmin/pgpass; /entrypoint.sh "
 
-  #   #Mount volume pgadmin-data to directory at the /var/lib/pgadmin path
-  #   volumes:
-  #     - pgadmin-data:/var/lib/pgadmin
-  #     # Mount servers json 
-  #     - ./postgres-db-pgadmin/dump/servers.json:/pgadmin4/servers.json
-  #     # Mount pg password to servers
-  #     - ./postgres-db-pgadmin/dump/.pgpass.conf:/pgadmin4/pgpass
-  #   # Grant permissions to pgpass
-  #   entrypoint: >
-  #     sh -c " cp -f /pgadmin4/pgpass /var/lib/pgadmin; chmod 600 /var/lib/pgadmin/pgpass; /entrypoint.sh "
+  # Service for python application
+  python-application:
+    # Container name
+    container_name: python-application
 
-  # # Service for python application
-  # python-application:
-  #   # Container name
-  #   container_name: python-application
+    # Build context 
+    build:
+      context: ./python-application
+      dockerfile: dockerfile
 
-  #   # Build context 
-  #   build:
-  #     context: ./python-application
-  #     dockerfile: dockerfile
+    # Get environment from development.env
+    env_file:
+      - ./python-application/config/development.env
 
-  #   # Get environment from development.env
-  #   env_file:
-  #     - ./python-application/config/development.env
+    #Set restart to always
+    restart: always
 
-  #   #Set restart to always
-  #   restart: always
+    # Share container network with postgres-db through postgre-app
+    networks:
+      - postgre-app
 
-  #   # Share container network with postgres-db through postgre-app
-  #   networks:
-  #     - postgre-app
-
-  #   #Mount volume
-  #   volumes:
-  #     - ./python-application:/app:bind
+    #Mount volume
+    volumes:
+      - ./python-application:/app:bind
 
   # Service for spark master node
   spark-master:
@@ -146,6 +153,7 @@ services:
     volumes:
       - ./spark/spark-notebook/notebooks:/home/jovyan/work
       - ./spark/spark-notebook/spark-defaults.conf:/usr/local/spark/conf/spark-defaults.conf
+    command: start-notebook.sh --NotebookApp.token=${JUPYTER_TOKEN}
     ports:
       - "8888:8888"
       - "4040:4040"
@@ -153,129 +161,393 @@ services:
       - spark-cluster
       - spark-hadoop
 
-  # # Service for Kafka - Kafka broker 0
-  # kafka-broker-0:
-  #   container_name: kafka-broker-0
-  #   image: bitnami/kafka
-  #   # Connect to kafka-cluster network
-  #   networks:
-  #     - kafka-cluster
-  #   # Add volume for kafka data
-  #   volumes:
-  #     - kafka_0_data:/bitnami/kafka
-  #   # Environment file
-  #   env_file:
-  #     - ./kafka/broker-0/config/development.env
-  #   healthcheck:
-  #     test: "bash -c 'printf \"\" > /dev/tcp/127.0.0.1/9092; exit $$?;'"
-  #     interval: 5s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 30s
+  # Service for Kafka - Kafka broker 0
+  kafka-broker-0:
+    container_name: kafka-broker-0
+    image: bitnami/kafka
+    # Connect to kafka-cluster network
+    networks:
+      - kafka-cluster
+    # Add volume for kafka data
+    volumes:
+      - kafka_0_data:/bitnami/kafka
+    # Environment file
+    env_file:
+      - ./kafka/broker-0/config/development.env
+    healthcheck:
+      test: "bash -c 'printf \"\" > /dev/tcp/127.0.0.1/9092; exit $$?;'"
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  # # Services for kafka - Kafka broker 1
-  # kafka-broker-1:
-  #   container_name: kafka-broker-1
-  #   image: bitnami/kafka
-  #   # Connect to kafka-cluster network
-  #   networks:
-  #     - kafka-cluster
-  #   volumes:
-  #     # Add volume for kafka data
-  #     - kafka_1_data:/bitnami/kafka
-  #   env_file:
-  #     - ./kafka/broker-1/config/development.env
-  #   healthcheck:
-  #     test: "bash -c 'printf \"\" > /dev/tcp/127.0.0.1/9092; exit $$?;'"
-  #     interval: 5s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 30s
+  # Services for kafka - Kafka broker 1
+  kafka-broker-1:
+    container_name: kafka-broker-1
+    image: bitnami/kafka
+    # Connect to kafka-cluster network
+    networks:
+      - kafka-cluster
+    volumes:
+      # Add volume for kafka data
+      - kafka_1_data:/bitnami/kafka
+    env_file:
+      - ./kafka/broker-1/config/development.env
+    healthcheck:
+      test: "bash -c 'printf \"\" > /dev/tcp/127.0.0.1/9092; exit $$?;'"
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  # # Schema registry 
-  # kafka-schema-registry:
-  #   container_name: kafka-schema-registry
-  #   image: bitnami/schema-registry
-  #   # Connect to kafka-cluster network
-  #   networks:
-  #     - kafka-cluster
-  #   # Service depends on kafka cluster to sucessfully spin up
-  #   depends_on:
-  #     - kafka-broker-0
-  #     - kafka-broker-1
-  #   env_file:
-  #     - ./kafka/schema-registry/config/development.env
+  # Schema registry 
+  kafka-schema-registry:
+    container_name: kafka-schema-registry
+    image: bitnami/schema-registry
+    # Connect to kafka-cluster network
+    networks:
+      - kafka-cluster
+    # Service depends on kafka cluster to sucessfully spin up
+    depends_on:
+      - kafka-broker-0
+      - kafka-broker-1
+    env_file:
+      - ./kafka/schema-registry/config/development.env
 
-  # #Kafka ui service
-  # kafka-ui:
-  #   container_name: kafka-ui
-  #   image: provectuslabs/kafka-ui
-  #   env_file:
-  #     - ./kafka/ui/config/development.env
-  #   volumes:
-  #     - ./kafka/ui/config.yml:/etc/kafkaui/dynamic_config.yaml
-  #   # Service depends on kafka cluster to sucessfully spin up
-  #   depends_on:
-  #     - kafka-broker-0
-  #     - kafka-broker-1
-  #     - kafka-schema-registry
-  #   # Connect to kafka-cluster network
-  #   networks:
-  #     - kafka-cluster
-  #   # Map ports
-  #   ports:
-  #     - "8879:8080"
-  #   healthcheck:
-  #     test: wget --no-verbose --tries=1 --spider localhost:8080 || exit 1
-  #     interval: 5s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 30s
+  #Kafka ui service
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui
+    env_file:
+      - ./kafka/ui/config/development.env
+    volumes:
+      - ./kafka/ui/config.yml:/etc/kafkaui/dynamic_config.yaml
+    # Service depends on kafka cluster to sucessfully spin up
+    depends_on:
+      - kafka-broker-0
+      - kafka-broker-1
+      - kafka-schema-registry
+    # Connect to kafka-cluster network
+    networks:
+      - kafka-cluster
+    # Map ports
+    ports:
+      - "8879:8080"
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider localhost:8080 || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  # # Services for hadoop cluster
-  # namenode:
-  #   image: apache/hadoop:3
-  #   hostname: namenode
-  #   command: ["hdfs", "namenode"]
-  #   ports:
-  #     - 9870:9870
-  #   env_file:
-  #     - ./hdfs/config
-  #   environment:
-  #       ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
-  #   networks:
-  #     - hadoop-cluster
-  #     - spark-hadoop
+  # Services for hadoop cluster
+  namenode:
+    image: apache/hadoop:3
+    hostname: namenode
+    command: [ "hdfs", "namenode" ]
+    ports:
+      - 9870:9870
+    env_file:
+      - ./hdfs/config
+    environment:
+      ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
+    networks:
+      - hadoop-cluster
+      - spark-hadoop
 
-  # datanode:
-  #   image: apache/hadoop:3
-  #   command: ["hdfs", "datanode"]
-  #   env_file:
-  #     - ./hdfs/config   
-  #   networks:
-  #     - hadoop-cluster
-  #     - spark-hadoop 
+  datanode:
+    image: apache/hadoop:3
+    command: [ "hdfs", "datanode" ]
+    env_file:
+      - ./hdfs/config
+    networks:
+      - hadoop-cluster
+      - spark-hadoop
 
-  # resourcemanager:
-  #   image: apache/hadoop:3
-  #   hostname: resourcemanager
-  #   command: ["yarn", "resourcemanager"]
-  #   ports:
-  #       - 8088:8088
-  #   env_file:
-  #     - ./hdfs/config
-  #   networks:
-  #     - hadoop-cluster
-  #     - spark-hadoop
+  resourcemanager:
+    image: apache/hadoop:3
+    hostname: resourcemanager
+    command: [ "yarn", "resourcemanager" ]
+    ports:
+      - 8088:8088
+    env_file:
+      - ./hdfs/config
+    networks:
+      - hadoop-cluster
+      - spark-hadoop
 
-  # nodemanager:
-  #   image: apache/hadoop:3
-  #   command: ["yarn", "nodemanager"]
-  #   env_file:
-  #     - ./hdfs/config
-  #   networks:
-  #     - hadoop-cluster
-  #     - spark-hadoop
+  nodemanager:
+    image: apache/hadoop:3
+    command: [ "yarn", "nodemanager" ]
+    env_file:
+      - ./hdfs/config
+    networks:
+      - hadoop-cluster
+      - spark-hadoop
+
+  # Services for airflow
+  # All services should depends on Postgresql, Redis health status
+  redis:
+    build:
+      context: ./redis
+      dockerfile: dockerfile
+    expose:
+      - 6379
+    networks:
+      - airflow
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 30s
+      retries: 50
+      start_period: 30s
+    restart: always
+
+  airflow-webserver:
+    build:
+      context: ./airflow
+      dockerfile: dockerfile
+    env_file:
+      - ./airflow/config/development.env
+    volumes:
+      - ./airflow/src/dags:/opt/airflow/dags
+      # - ./airflow/src/logs:/opt/airflow/logs
+      # - ./airflow/src/config:/opt/airflow/config
+      # - ./airflow/src/plugins:/opt/airflow/plugins
+    user: "${AIRFLOW_UID:-50000}:0"
+    networks:
+      - airflow
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail",
+          "http://localhost:8080/health"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres-db:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    build:
+      context: ./airflow
+      dockerfile: dockerfile
+    env_file:
+      - ./airflow/config/development.env
+    volumes:
+      - ./airflow/src/dags:/opt/airflow/dags
+      # - ./airflow/src/logs:/opt/airflow/logs
+      # - ./airflow/src/config:/opt/airflow/config
+      # - ./airflow/src/plugins:/opt/airflow/plugins
+    networks:
+      - airflow
+    user: "${AIRFLOW_UID:-50000}:0"
+    command: scheduler
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail",
+          "http://localhost:8974/health"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres-db:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-worker:
+    build:
+      context: ./airflow
+      dockerfile: dockerfile
+    env_file:
+      - ./airflow/config/development.env
+    environment:
+      # Required to handle warm shutdown of the celery workers properly
+      # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
+      DUMB_INIT_SETSID: "0"
+    volumes:
+      - ./airflow/src/dags:/opt/airflow/dags
+      # - ./airflow/src/logs:/opt/airflow/logs
+      # - ./airflow/src/config:/opt/airflow/config
+      # - ./airflow/src/plugins:/opt/airflow/plugins
+    networks:
+      - airflow
+    user: "${AIRFLOW_UID:-50000}:0"
+    command: celery worker
+    healthcheck:
+      # yamllint disable rule:line-length
+      test:
+        - "CMD-SHELL"
+        - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres-db:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-triggerer:
+    build:
+      context: ./airflow
+      dockerfile: dockerfile
+    env_file:
+      - ./airflow/config/development.env
+    volumes:
+      - ./airflow/src/dags:/opt/airflow/dags
+      # - ./airflow/src/logs:/opt/airflow/logs
+      # - ./airflow/src/config:/opt/airflow/config
+      # - ./airflow/src/plugins:/opt/airflow/plugins
+    networks:
+      - airflow
+    user: "${AIRFLOW_UID:-50000}:0"
+    command: triggerer
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"'
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres-db:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-init:
+    build:
+      context: ./airflow
+      dockerfile: dockerfile
+    networks:
+      - airflow
+    env_file:
+      - ./airflow/config/development.env
+    environment:
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
+    user: "0:0"
+    volumes:
+      - ./airflow/src:/sources
+    entrypoint: /bin/bash
+    # yamllint disable rule:line-length
+    command:
+      - -c
+      - |
+        if [[ -z "${AIRFLOW_UID}" ]]; then
+          echo
+          echo -e "\033[1;33mWARNING!!!: AIRFLOW_UID not set!\e[0m"
+          echo "If you are on Linux, you SHOULD follow the instructions below to set "
+          echo "AIRFLOW_UID environment variable, otherwise files will be owned by root."
+          echo "For other operating systems you can get rid of the warning with manually created .env file:"
+          echo "    See: https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html#setting-the-right-airflow-user"
+          echo
+        fi
+        one_meg=1048576
+        mem_available=$$(($$(getconf _PHYS_PAGES) * $$(getconf PAGE_SIZE) / one_meg))
+        cpus_available=$$(grep -cE 'cpu[0-9]+' /proc/stat)
+        disk_available=$$(df / | tail -1 | awk '{print $$4}')
+        warning_resources="false"
+        if (( mem_available < 4000 )) ; then
+          echo
+          echo -e "\033[1;33mWARNING!!!: Not enough memory available for Docker.\e[0m"
+          echo "At least 4GB of memory required. You have $$(numfmt --to iec $$((mem_available * one_meg)))"
+          echo
+          warning_resources="true"
+        fi
+        if (( cpus_available < 2 )); then
+          echo
+          echo -e "\033[1;33mWARNING!!!: Not enough CPUS available for Docker.\e[0m"
+          echo "At least 2 CPUs recommended. You have $${cpus_available}"
+          echo
+          warning_resources="true"
+        fi
+        if (( disk_available < one_meg * 10 )); then
+          echo
+          echo -e "\033[1;33mWARNING!!!: Not enough Disk space available for Docker.\e[0m"
+          echo "At least 10 GBs recommended. You have $$(numfmt --to iec $$((disk_available * 1024 )))"
+          echo
+          warning_resources="true"
+        fi
+        if [[ $${warning_resources} == "true" ]]; then
+          echo
+          echo -e "\033[1;33mWARNING!!!: You have not enough resources to run Airflow (see above)!\e[0m"
+          echo "Please follow the instructions to increase amount of resources available:"
+          echo "   https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html#before-you-begin"
+          echo
+        fi
+        mkdir -p /sources/logs /sources/dags /sources/plugins
+        chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins}
+        exec /entrypoint airflow version
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres-db:
+        condition: service_healthy
+
+  airflow-cli:
+    build:
+      context: ./airflow
+      dockerfile: dockerfile
+    env_file:
+      - ./airflow/config/development.env
+    networks:
+      - airflow
+    environment:
+      CONNECTION_CHECK_MAX_COUNT: "0"
+    volumes:
+      - ./airflow/src/dags:/opt/airflow/dags
+      # - ./airflow/src/logs:/opt/airflow/logs
+      # - ./airflow/src/config:/opt/airflow/config
+      # - ./airflow/src/plugins:/opt/airflow/plugins
+    user: "${AIRFLOW_UID:-50000}:0"
+    profiles:
+      - debug
+    # Workaround for entrypoint issue. See: https://github.com/apache/airflow/issues/16252
+    command:
+      - bash
+      - -c
+      - airflow
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres-db:
+        condition: service_healthy
 
 networks:
   postgre-pgadmin:
@@ -289,6 +561,8 @@ networks:
   hadoop-cluster:
     driver: bridge
   spark-hadoop:
+    driver: bridge
+  airflow:
     driver: bridge
 
 volumes:
