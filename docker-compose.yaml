@@ -161,6 +161,15 @@ services:
       - spark-cluster
       - spark-hadoop
 
+  # ## Currently removed for development 
+  # # Service for debezium
+  # kafka-connect:
+  #   image: debezium/connect:3.0
+  #   env_file:
+  #     - ./debezium/config/development.env
+  #   volumes:
+  #     - ./secrets:/etc/kafka/secrets
+
   # Service for Kafka - Kafka broker 0
   kafka-broker-0:
     container_name: kafka-broker-0
@@ -168,9 +177,12 @@ services:
     # Connect to kafka-cluster network
     networks:
       - kafka-cluster
+      - kafka-metrics
     # Add volume for kafka data
     volumes:
       - kafka_0_data:/bitnami/kafka
+      # Mount jmx jar agent and config to kafka
+      - ./jmx-exporter/kafka:/opt/jmx-exporter
     # Environment file
     env_file:
       - ./kafka/broker-0/config/development.env
@@ -188,9 +200,12 @@ services:
     # Connect to kafka-cluster network
     networks:
       - kafka-cluster
+      - kafka-metrics
     volumes:
       # Add volume for kafka data
       - kafka_1_data:/bitnami/kafka
+      # Mount jmx jar agent and config to kafka
+      - ./jmx-exporter/kafka:/opt/jmx-exporter
     env_file:
       - ./kafka/broker-1/config/development.env
     healthcheck:
@@ -240,50 +255,51 @@ services:
       retries: 3
       start_period: 30s
 
-  # Services for hadoop cluster
-  namenode:
-    image: apache/hadoop:3
-    hostname: namenode
-    command: [ "hdfs", "namenode" ]
-    ports:
-      - 9870:9870
-    env_file:
-      - ./hdfs/config
-    environment:
-      ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
-    networks:
-      - hadoop-cluster
-      - spark-hadoop
+  # Currently removed for migration to MinIO
+  # # Services for hadoop cluster
+  # namenode:
+  #   image: apache/hadoop:3
+  #   hostname: namenode
+  #   command: [ "hdfs", "namenode" ]
+  #   ports:
+  #     - 9870:9870
+  #   env_file:
+  #     - ./hdfs/config
+  #   environment:
+  #     ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
+  #   networks:
+  #     - hadoop-cluster
+  #     - spark-hadoop
 
-  datanode:
-    image: apache/hadoop:3
-    command: [ "hdfs", "datanode" ]
-    env_file:
-      - ./hdfs/config
-    networks:
-      - hadoop-cluster
-      - spark-hadoop
+  # datanode:
+  #   image: apache/hadoop:3
+  #   command: [ "hdfs", "datanode" ]
+  #   env_file:
+  #     - ./hdfs/config
+  #   networks:
+  #     - hadoop-cluster
+  #     - spark-hadoop
 
-  resourcemanager:
-    image: apache/hadoop:3
-    hostname: resourcemanager
-    command: [ "yarn", "resourcemanager" ]
-    ports:
-      - 8088:8088
-    env_file:
-      - ./hdfs/config
-    networks:
-      - hadoop-cluster
-      - spark-hadoop
+  # resourcemanager:
+  #   image: apache/hadoop:3
+  #   hostname: resourcemanager
+  #   command: [ "yarn", "resourcemanager" ]
+  #   ports:
+  #     - 8088:8088
+  #   env_file:
+  #     - ./hdfs/config
+  #   networks:
+  #     - hadoop-cluster
+  #     - spark-hadoop
 
-  nodemanager:
-    image: apache/hadoop:3
-    command: [ "yarn", "nodemanager" ]
-    env_file:
-      - ./hdfs/config
-    networks:
-      - hadoop-cluster
-      - spark-hadoop
+  # nodemanager:
+  #   image: apache/hadoop:3
+  #   command: [ "yarn", "nodemanager" ]
+  #   env_file:
+  #     - ./hdfs/config
+  #   networks:
+  #     - hadoop-cluster
+  #     - spark-hadoop
 
   # Services for airflow
   # All services should depends on Postgresql, Redis health status
@@ -549,6 +565,69 @@ services:
       postgres-db:
         condition: service_healthy
 
+  #Services for metrics and reporters (Prometheus and grafana)
+
+  #Services to export kafka metrics
+  kafka-exporter:
+    image: docker.io/bitnami/kafka-exporter:latest
+    depends_on:
+      kafka-broker-0:
+        condition: service_healthy
+      kafka-broker-1:
+        condition: service_healthy
+    networks:
+      - kafka-metrics
+    command: --kafka.server=kafka-broker-0:9092 --kafka.server=kafka-broker-1:9092
+    healthcheck:
+      test: "bash -c 'printf \"\" > /dev/tcp/127.0.0.1/9308; exit $$?;'"
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Service for prometheus
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    # Adding config file 
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prom_data:/prometheus
+    networks:
+      - kafka-metrics
+      - prometheus-grafana
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider localhost:9090 || exit 1
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Services for grafana
+  grafana:
+    container_name: grafana
+    # Use version 10.4.5 because version from 11 above doesn't have legacy support for Angular
+    image: grafana/grafana:10.4.5
+    ports:
+      - 3000:3000
+    env_file:
+      - ./grafana/config/development.env
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - prometheus-grafana
+    healthcheck:
+      test: curl --fail localhost:3000
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
 networks:
   postgre-pgadmin:
     driver: bridge
@@ -564,6 +643,10 @@ networks:
     driver: bridge
   airflow:
     driver: bridge
+  prometheus-grafana:
+    driver: bridge
+  kafka-metrics:
+    driver: bridge
 
 volumes:
   pgadmin-data:
@@ -573,4 +656,6 @@ volumes:
   kafka_0_data:
     driver: local
   kafka_1_data:
+    driver: local
+  prom_data:
     driver: local
