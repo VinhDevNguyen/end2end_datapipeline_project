@@ -1,39 +1,31 @@
+# Start from an OpenJDK base image
+FROM eclipse-temurin:22-jdk AS PLUGINS
+
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y curl tar && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Confluent Hub Client
+RUN curl -L --http1.1 http://client.hub.confluent.io/confluent-hub-client-latest.tar.gz | tar xvz -C /usr/local
+
+# Set up Confluent Platform directories and worker configs
+# For more information, https://stackoverflow.com/questions/56958382/use-confluent-hub-without-confluent-platform-installation
+RUN mkdir /usr/share/java 
+RUN mkdir /etc/kafka
+RUN touch /etc/kafka/connect-distributed.properties
+
+ENV COMPONENT_DIR=/usr/share/java
+ENV WORKER_CONFIGS=/etc/kafka/connect-distributed.properties
+
+# # Install the Kafka Connect Avro Converter plugin
+RUN confluent-hub install --no-prompt --component-dir $COMPONENT_DIR --worker-configs $WORKER_CONFIGS confluentinc/kafka-connect-avro-converter:latest
+
+
+
+### New stage ###
 FROM debezium/connect:3.0
 
-
-### Remove due to Confluent avro convert newer versions now have new dependencies 
-# Install dependencies for Avro converter
-# For more information, see https://debezium.io/documentation/reference/configuration/avro.html#confluent-schema-registry
-
-# # Set version for confluent 
-# # This should be equal to the version of Confluent Schema registry
-# ENV CONFLUENT_VERSION=7.6.1
-# # Current latest version
-# ENV AVRO_VERSION=1.11.3 
-# ENV GUAVA_VERSION=33.2.1-jre
-
-# # Check current version of confluent packages from this repo
-# # https://packages.confluent.io/maven/io/confluent/
-# # The md5sum is located in file .md5 
-# # Example: https://packages.confluent.io/maven/io/confluent/kafka-schema-converter/7.5.5/kafka-schema-converter-7.5.5.jar.md5
-
-# # For more information regarding docker-maven--dowload script,
-# # View https://github.com/debezium/container-images/blob/main/connect-base/3.0/docker-maven-download.sh
-# RUN docker-maven-download confluent kafka-connect-avro-converter "$CONFLUENT_VERSION" 1d3b38cfcf2fe61b58362ab17aca1745 && \
-#     docker-maven-download confluent kafka-connect-avro-data "$CONFLUENT_VERSION" f03b2c832c3067c3511afa7206f38dd5 && \
-#     docker-maven-download confluent kafka-avro-serializer "$CONFLUENT_VERSION" 093552bc117ce492c9f6f2802c419461 && \
-#     docker-maven-download confluent kafka-schema-serializer "$CONFLUENT_VERSION" b9fd5e14ae7988e8fe66f4692ee90141 && \
-#     docker-maven-download confluent kafka-schema-registry-client "$CONFLUENT_VERSION" ee2d4ad06f9a8e541496effd17a9b64a && \
-#     docker-maven-download confluent common-config "$CONFLUENT_VERSION" 5596cde6b99c92937a1741173ece52fb && \
-#     docker-maven-download confluent common-utils "$CONFLUENT_VERSION" 554af02e4f7f0a01b8f05e82bfd602e3
-
-# # For more information, check here https://medium.com/@rayane.gouda/making-debezium-connect-support-confluent-schema-registry-b9510ed45f4b
-# RUN docker-maven-download central org/apache/avro avro "$AVRO_VERSION" 0ce474e395d0aad56c11293fd68ccb52 && \
-#     docker-maven-download central com/google/guava guava "$GUAVA_VERSION" 872309e5982530bdc7e68096c0d53cd2
-###
-
-
-# Copy the library dependencies needed for Confluent Schema registry
-# Link to libraries: https://www.confluent.io/hub/confluentinc/kafka-connect-avro-converter
-# The libraries should be copy to $MAVEN_DEP_DESTINATION, for more information, check https://github.com/debezium/container-images/tree/main connect-base and connect image
-COPY ./convert_libs/confluentinc-kafka-connect-avro-converter-7.6.1/lib "$MAVEN_DEP_DESTINATION"
+## Copy only the plugins from the PLUGIN stage
+# Copy the avro converter libraries to MAVEN_DEP_DESTINATION
+COPY --from=PLUGINS /usr/share/java/confluentinc-kafka-connect-avro-converter/lib "$MAVEN_DEP_DESTINATION"
