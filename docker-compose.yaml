@@ -284,8 +284,8 @@ services:
       retries: 3
       start_period: 30s
 
-  Services for airflow
-  All services should depends on Postgresql, Redis health status
+  # Services for airflow
+  # All services should depends on Postgresql, Redis health status
   redis:
     build:
       context: ./redis
@@ -590,7 +590,7 @@ services:
       retries: 3
       start_period: 5s
 
-  Services for grafana
+  # Services for grafana
   grafana:
     container_name: grafana
     # Use version 10.4.5 because version from 11 above doesn't have legacy support for Angular
