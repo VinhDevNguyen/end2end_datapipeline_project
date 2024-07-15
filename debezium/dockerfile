@@ -1,0 +1,31 @@
+# Start from an OpenJDK base image
+FROM eclipse-temurin:22-jdk AS PLUGINS
+
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y curl tar && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Confluent Hub Client
+RUN curl -L --http1.1 http://client.hub.confluent.io/confluent-hub-client-latest.tar.gz | tar xvz -C /usr/local
+
+# Set up Confluent Platform directories and worker configs
+# For more information, https://stackoverflow.com/questions/56958382/use-confluent-hub-without-confluent-platform-installation
+RUN mkdir /usr/share/java 
+RUN mkdir /etc/kafka
+RUN touch /etc/kafka/connect-distributed.properties
+
+ENV COMPONENT_DIR=/usr/share/java
+ENV WORKER_CONFIGS=/etc/kafka/connect-distributed.properties
+
+# # Install the Kafka Connect Avro Converter plugin
+RUN confluent-hub install --no-prompt --component-dir $COMPONENT_DIR --worker-configs $WORKER_CONFIGS confluentinc/kafka-connect-avro-converter:latest
+
+
+
+### New stage ###
+FROM debezium/connect:3.0
+
+## Copy only the plugins from the PLUGIN stage
+# Copy the avro converter libraries to MAVEN_DEP_DESTINATION
+COPY --from=PLUGINS /usr/share/java/confluentinc-kafka-connect-avro-converter/lib "$MAVEN_DEP_DESTINATION"

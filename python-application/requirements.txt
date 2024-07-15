@@ -1,0 +1,2 @@
+# Install psycorg3
+psycopg[binary]>=3.0,<4.0

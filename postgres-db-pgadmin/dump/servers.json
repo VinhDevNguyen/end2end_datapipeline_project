@@ -1,0 +1,15 @@
+{
+    "Servers": {
+        "postgres-db": {
+            "Name": "postgres-db-connection",
+            "Group": "Servers",
+            "Port": 5432,
+            "Username": "devtesting",
+            "Host": "postgres-db",
+            "SSLMode": "prefer",
+            "MaintenanceDB": "postgres",
+            "SavePassword": true,
+            "PassFile": "../../pgpass"
+        }
+    }
+}
