@@ -101,66 +101,69 @@ services:
     volumes:
       - ./python-application:/app:bind
 
-  # # Service for spark master node
-  # spark-master:
-  #   # Container name
-  #   container_name: spark-master
-  #   # Build context 
-  #   build:
-  #     context: ./spark/spark-master
-  #     dockerfile: dockerfile
-  #   ports:
-  #     - '8078:8080'
-  #   # Get environment from development.env
-  #   env_file:
-  #     - ./spark/spark-master/config/development.env
-  #   # Mount configuration files
-  #   volumes:
-  #     - ./spark/spark-master/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
-  #   # Share container network with spark cluster through spark-cluster
-  #   networks:
-  #     - spark-cluster
-  #     - spark-hadoop
+  # Service for spark master node
+  spark-master:
+    # Container name
+    container_name: spark-master
+    # Build context 
+    build:
+      context: ./spark/spark-master
+      dockerfile: dockerfile
+    ports:
+      - '8078:8080'
+    # Get environment from development.env
+    env_file:
+      - ./spark/spark-master/config/development.env
+    # Mount configuration files
+    volumes:
+      - ./spark/spark-master/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+    # Share container network with spark cluster through spark-cluster
+    networks:
+      - spark-cluster
+      - spark-hadoop
+      - kafka-spark
 
-  # # Service for spark worker node
-  # spark-worker:
-  #   # Container name
-  #   container_name: spark-worker
-  #   # Build context 
-  #   build:
-  #     context: ./spark/spark-worker
-  #     dockerfile: dockerfile
-  #   # Get environment from development.env
-  #   env_file:
-  #     - ./spark/spark-worker/config/development.env
-  #   # Share container network with spark cluster through spark-cluster
-  #   networks:
-  #     - spark-cluster
-  #     - spark-hadoop
+  # Service for spark worker node
+  spark-worker:
+    # Container name
+    container_name: spark-worker
+    # Build context 
+    build:
+      context: ./spark/spark-worker
+      dockerfile: dockerfile
+    # Get environment from development.env
+    env_file:
+      - ./spark/spark-worker/config/development.env
+    # Share container network with spark cluster through spark-cluster
+    networks:
+      - spark-cluster
+      - spark-hadoop
+      - kafka-spark
 
-  # # Service for spark notebook
-  # spark-notebook:
-  #   # Container name
-  #   container_name: spark-notebook
-  #   # Build context 
-  #   build:
-  #     context: ./spark/spark-notebook
-  #     dockerfile: dockerfile
-  #   # Set user to root
-  #   user: root
-  #   env_file:
-  #     - ./spark/spark-notebook/config/development.env
-  #   # Mount configuration files
-  #   volumes:
-  #     - ./spark/spark-notebook/notebooks:/home/jovyan/work
-  #     - ./spark/spark-notebook/spark-defaults.conf:/usr/local/spark/conf/spark-defaults.conf
-  #   command: start-notebook.sh --NotebookApp.token=${JUPYTER_TOKEN}
-  #   ports:
-  #     - "8888:8888"
-  #     - "4040:4040"
-  #   networks:
-  #     - spark-cluster
-  #     - spark-hadoop
+  # Service for spark notebook
+  spark-notebook:
+    # Container name
+    container_name: spark-notebook
+    # Build context 
+    build:
+      context: ./spark/spark-notebook
+      dockerfile: dockerfile
+    # Set user to root
+    user: root
+    env_file:
+      - ./spark/spark-notebook/config/development.env
+    # Mount configuration files
+    volumes:
+      - ./spark/spark-notebook/notebooks:/home/jovyan/work
+      - ./spark/spark-notebook/spark-defaults.conf:/usr/local/spark/conf/spark-defaults.conf
+    command: start-notebook.sh --NotebookApp.token=${JUPYTER_TOKEN}
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+    networks:
+      - spark-cluster
+      - spark-hadoop
+      - kafka-spark
 
   ## Currently removed for development 
   # Service for debezium
@@ -205,6 +208,7 @@ services:
       - kafka-cluster
       - kafka-metrics
       - kafka-debezium-postgresql
+      - kafka-spark
     # Add volume for kafka data
     volumes:
       - kafka_0_data:/bitnami/kafka
@@ -229,6 +233,7 @@ services:
       - kafka-cluster
       - kafka-metrics
       - kafka-debezium-postgresql
+      - kafka-spark
     volumes:
       # Add volume for kafka data
       - kafka_1_data:/bitnami/kafka
@@ -251,6 +256,7 @@ services:
     networks:
       - kafka-cluster
       - kafka-debezium-postgresql
+      - kafka-spark
     # Service depends on kafka cluster to sucessfully spin up
     depends_on:
       - kafka-broker-0
@@ -676,6 +682,8 @@ networks:
   kafka-metrics:
     driver: bridge
   kafka-debezium-postgresql:
+    driver: bridge
+  kafka-spark:
     driver: bridge
 
 volumes:

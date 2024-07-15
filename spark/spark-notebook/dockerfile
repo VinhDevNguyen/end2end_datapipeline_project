@@ -36,10 +36,16 @@
 # # https://spark.apache.org/docs/latest/api/python/getting_started/install.html#dependencies
 # RUN pip3 install py4j pandas pyarrow numpy grpcio grpcio-status googleapis-common-protos
 
+FROM maven:latest
+
+
 FROM jupyter/pyspark-notebook:x86_64-python-3.11.6
 
 # Use user root
 USER root 
+
+# ENVIRONMENT SPARK_HOME default value is /usr/local/spark for this base image
+# For more information, please refer to https://github.com/jupyter/docker-stacks/blob/main/images/pyspark-notebook/Dockerfile
 
 # Change spark version from 3.5.0 to 3.5.1 to match spark cluster version
 RUN curl -O https://dlcdn.apache.org/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz  \
@@ -48,8 +54,28 @@ RUN curl -O https://dlcdn.apache.org/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.t
     && mv spark-3.5.1-bin-hadoop3/ /usr/local/ \
     && rm -rf /usr/local/spark \
     && rm -rf /usr/local/spark-3.5.0-bin-hadoop3 \
-    && ln -s /usr/local/spark-3.5.1-bin-hadoop3 /usr/local/spark
+    && ln -s /usr/local/spark-3.5.1-bin-hadoop3 "$SPARK_HOME"
+
+# Setting dependencies for reading/writing with Delta table format
 
 # Install delta spark for spark to use delta lake open table format
 RUN curl -O https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/3.2.0/delta-spark_2.12-3.2.0.jar \
-    && mv delta-spark_2.12-3.2.0.jar /usr/local/spark/jars  \
+    && mv delta-spark_2.12-3.2.0.jar "$SPARK_HOME/jars"
+
+## Setting dependencies for Kafka + Spark structured streaming integration
+
+# Install compiled dependencies for spark-sql-kafka spark-sql-kafka-0-10_2.12-3.5.1 artifact 
+
+RUN curl -O https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar \
+    && mv kafka-clients-3.4.1.jar "$SPARK_HOME/jars"
+
+RUN curl -O https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.5.1/spark-token-provider-kafka-0-10_2.12-3.5.1.jar \
+    && mv spark-token-provider-kafka-0-10_2.12-3.5.1.jar "$SPARK_HOME/jars"
+
+RUN curl -O https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.12.0/commons-pool2-2.12.0.jar \
+    && mv commons-pool2-2.12.0.jar "$SPARK_HOME/jars"
+    
+# Install dependencies for spark structured streaming with kafka
+# For more information, please refer to https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html#deploying
+RUN curl -O https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.1/spark-sql-kafka-0-10_2.12-3.5.1.jar \
+    && mv spark-sql-kafka-0-10_2.12-3.5.1.jar "$SPARK_HOME/jars"

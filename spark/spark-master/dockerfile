@@ -5,7 +5,37 @@ FROM bitnami/spark:3.5.1
 USER root
 RUN install_packages curl
 
-# Install delta spark for spark to use delta lake open table format
+
+### Under dependencies installation are subject to changes as Maven may be used for building dependencies
+
+# Use USER 1001, the default user for this base image
 USER 1001
+
+# ENVIRONMENT SPARK_HOME default value is /opt/bitnami/spark for this base image
+# For more information, please refer to https://github.com/bitnami/containers/blob/main/bitnami/spark/README.md
+
+## Setting dependencies for reading/writing with Delta table format
+
+# Install delta spark for spark to use delta lake open table format
 RUN curl -O https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/3.2.0/delta-spark_2.12-3.2.0.jar \
-    && mv delta-spark_2.12-3.2.0.jar /opt/bitnami/spark/jars  \
+    && mv delta-spark_2.12-3.2.0.jar "$SPARK_HOME/jars"
+
+## Setting dependencies for Kafka + Spark structured streaming integration
+
+# Install compiled dependencies for spark-sql-kafka spark-sql-kafka-0-10_2.12-3.5.1 artifact 
+
+RUN curl -O https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar \
+    && mv kafka-clients-3.4.1.jar "$SPARK_HOME/jars"
+
+RUN curl -O https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.5.1/spark-token-provider-kafka-0-10_2.12-3.5.1.jar \
+    && mv spark-token-provider-kafka-0-10_2.12-3.5.1.jar "$SPARK_HOME/jars"
+
+RUN curl -O https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.12.0/commons-pool2-2.12.0.jar \
+    && mv commons-pool2-2.12.0.jar "$SPARK_HOME/jars"
+    
+# Install dependencies for spark structured streaming with kafka
+# For more information, please refer to https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html#deploying
+RUN curl -O https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.1/spark-sql-kafka-0-10_2.12-3.5.1.jar \
+    && mv spark-sql-kafka-0-10_2.12-3.5.1.jar "$SPARK_HOME/jars"
+
+
