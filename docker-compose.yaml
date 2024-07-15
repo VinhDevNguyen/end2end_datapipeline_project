@@ -134,32 +134,28 @@ services:
     # Get environment from development.env
     env_file:
       - ./spark/spark-worker/config/development.env
+    # Depends on spark master to sucessfully spin up
+    depends_on:
+      - spark-master
     # Share container network with spark cluster through spark-cluster
     networks:
       - spark-cluster
       - spark-hadoop
       - kafka-spark
 
-  # Service for spark notebook
-  spark-notebook:
-    # Container name
-    container_name: spark-notebook
-    # Build context 
-    build:
-      context: ./spark/spark-notebook
-      dockerfile: dockerfile
-    # Set user to root
-    user: root
-    env_file:
-      - ./spark/spark-notebook/config/development.env
-    # Mount configuration files
+  # Service for development environment
+  code-server:
+    container_name: code-server
+    build: 
+      context: ./code_server
+      dockerfile: Dockerfile
+    environment:
+      - ./code_server/config/development.env
     volumes:
-      - ./spark/spark-notebook/notebooks:/home/jovyan/work
-      - ./spark/spark-notebook/spark-defaults.conf:/usr/local/spark/conf/spark-defaults.conf
-    command: start-notebook.sh --NotebookApp.token=${JUPYTER_TOKEN}
+      - ./:/workspace
     ports:
-      - "8888:8888"
-      - "4040:4040"
+      - 8443:8443
+    restart: unless-stopped
     networks:
       - spark-cluster
       - spark-hadoop
@@ -641,26 +637,38 @@ services:
   #     retries: 3
   #     start_period: 5s
 
-  # # Services for grafana
-  # grafana:
-  #   container_name: grafana
-  #   # Use version 10.4.5 because version from 11 above doesn't have legacy support for Angular
-  #   image: grafana/grafana:10.4.5
-  #   ports:
-  #     - 3000:3000
-  #   env_file:
-  #     - ./grafana/config/development.env
-  #   volumes:
-  #     - ./grafana/provisioning:/etc/grafana/provisioning
-  #     - ./grafana/dashboards:/var/lib/grafana/dashboards
-  #   networks:
-  #     - prometheus-grafana
-  #   healthcheck:
-  #     test: curl --fail localhost:3000
-  #     interval: 5s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 10s
+  # Services for grafana
+  grafana:
+    container_name: grafana
+    # Use version 10.4.5 because version from 11 above doesn't have legacy support for Angular
+    image: grafana/grafana:10.4.5
+    ports:
+      - 3000:3000
+    env_file:
+      - ./grafana/config/development.env
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - prometheus-grafana
+    healthcheck:
+      test: curl --fail localhost:3000
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+  minio1:
+    image: quay.io/minio/minio
+    container_name: minio1
+    environment:
+      MINIO_ROOT_USER: admin_minio
+      MINIO_ROOT_PASSWORD: admin_minio
+    volumes:
+      - ${PWD}/minio/data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
 
 networks:
   postgre-pgadmin:
@@ -684,6 +692,7 @@ networks:
   kafka-debezium-postgresql:
     driver: bridge
   kafka-spark:
+  minio:
     driver: bridge
 
 volumes:
