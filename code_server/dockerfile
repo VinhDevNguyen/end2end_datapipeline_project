@@ -17,3 +17,48 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 # Install java for running pyspark
 RUN apt-get install -y openjdk-8-jdk
+
+# Install some vscode extensions for vscode jupyter and python
+RUN /app/code-server/bin/code-server \
+    --install-extension ms-toolsai.vscode-jupyter-slideshow \
+    --install-extension ms-toolsai.jupyter-renderers \
+    --install-extension ms-toolsai.jupyter-keymap \
+    --install-extension ms-toolsai.vscode-jupyter-cell-tags \
+    --install-extension ms-toolsai.jupyter \
+    --install-extension ms-python.debugpy \
+    --install-extension ms-python.python \
+    --extensions-dir /config/extensions
+
+
+
+
+### LEGACY ###
+## May move to Maven for depedencies management, or using application configuration spark.jars.packages to distribute dependencies
+
+# # Install dependencies for spark application
+
+# ENV SPARK_HOME_JARS="/usr/local/lib/python3.11/dist-packages/pyspark/jars"
+
+# # Install delta spark for spark to use delta lake open table format
+# RUN curl -O https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/3.2.0/delta-spark_2.12-3.2.0.jar \
+#     && mv delta-spark_2.12-3.2.0.jar "$SPARK_HOME_JARS"
+
+# ## Setting dependencies for Kafka + Spark structured streaming integration
+
+# # Install compiled dependencies for spark-sql-kafka spark-sql-kafka-0-10_2.12-3.5.1 artifact 
+
+# RUN curl -O https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar \
+#     && mv kafka-clients-3.4.1.jar "$SPARK_HOME_JARS"
+
+# RUN curl -O https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.5.1/spark-token-provider-kafka-0-10_2.12-3.5.1.jar \
+#     && mv spark-token-provider-kafka-0-10_2.12-3.5.1.jar "$SPARK_HOME_JARS"
+
+# RUN curl -O https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.12.0/commons-pool2-2.12.0.jar \
+#     && mv commons-pool2-2.12.0.jar "$SPARK_HOME_JARS"
+    
+# # Install dependencies for spark structured streaming with kafka
+# # For more information, please refer to https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html#deploying
+# RUN curl -O https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.1/spark-sql-kafka-0-10_2.12-3.5.1.jar \
+#     && mv spark-sql-kafka-0-10_2.12-3.5.1.jar "$SPARK_HOME_JARS"
+
+### LEGACY ###
