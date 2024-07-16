@@ -1,6 +1,6 @@
 # How to run
 
-## Create environment files
+## Create environment files (Linux)
 
 Docker compose services get all environment variables from their corresponding directory file development.env.
 Please execute this command to copy all services example.env files to development.env files
@@ -15,3 +15,7 @@ make copy_env_files
 make up
 ```
 
+## Create environment files (Windows)
+```powershell
+./copy_envs.ps1
+```
