@@ -1,10 +1,8 @@
-version: '2.27'
+version: '3.8'
 
 services:
   postgres:
-    build: 
-      context: ./postgres
-      dockerfile: Dockerfile
+    image: postgres
     container_name: postgres_container
     environment:
       POSTGRES_USER: thoaipm
@@ -13,14 +11,13 @@ services:
     # Mount init scripts for postgresql instance to run at start up
     volumes:
       - postgresql-data:/bitnami/postgresql
+      - ./data:/data
       - ./postgres/init_scripts:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
 
   pgadmin:
-    build:
-      context: ./pgadmin
-      dockerfile: Dockerfile
+    image: dpage/pgadmin4
     container_name: pgadmin_container
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com

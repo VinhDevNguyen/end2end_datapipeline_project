@@ -15,8 +15,8 @@ CREATE TABLE
     );
 
 -- Copy CSV data into the table
-COPY locations(LocationID, Borough, Zone, service_zone)
-FROM '/data/taxi_zone_lookup.csv' DELIMITER ',' CSV HEADER;
+-- COPY locations(LocationID, Borough, Zone, service_zone)
+-- FROM '/data/taxi_zone_lookup.csv' DELIMITER ',' CSV HEADER;
 
 -- Change owner of schemas and tables to  user devtesting -- owner of database
 

@@ -1,5 +1,5 @@
 # postgres/Dockerfile
-FROM bitnami/postgresql:16.3.0
+FROM postgres:lastest
 
 # # Ensure the required directory exists and install necessary packages
 # USER root
