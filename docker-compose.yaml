@@ -119,6 +119,7 @@ services:
       - spark-cluster
       - spark-hadoop
       - kafka-spark-code-server
+      - minio
 
   # Service for spark worker node
   spark-worker:
@@ -139,6 +140,7 @@ services:
       - spark-cluster
       - spark-hadoop
       - kafka-spark-code-server
+      - minio
 
   # Service for development environment
   code-server:
@@ -157,6 +159,7 @@ services:
       - spark-cluster
       - spark-hadoop
       - kafka-spark-code-server
+      - minio
 
   ## Currently removed for development 
   # Service for debezium
@@ -611,9 +614,9 @@ services:
       retries: 3
       start_period: 10s
 
-  minio1:
+  minio:
     image: quay.io/minio/minio
-    container_name: minio1
+    container_name: minio
     env_file:
       - ./minio/config/development.env
     volumes:
@@ -622,6 +625,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     command: server /data --console-address ":9001"
+    networks:
+      - minio
 
 networks:
   postgre-pgadmin:
