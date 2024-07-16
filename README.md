@@ -17,5 +17,5 @@ make up
 
 ## Create environment files (Windows)
 ```powershell
-./copy_envs.ps1
+.\copy_envs.ps1
 ```
