@@ -168,3 +168,5 @@ cython_debug/
 
 # Ignore data folder in minio
 minio/data
+
+data/
