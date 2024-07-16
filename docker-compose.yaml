@@ -149,7 +149,7 @@ services:
     environment:
       - ./code_server/config/development.env
     volumes:
-      - ./code_server/src:/workspace
+      - ./:/workspace
     ports:
       - 8443:8443
     restart: unless-stopped
