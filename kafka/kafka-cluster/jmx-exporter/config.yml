@@ -18,6 +18,20 @@ rules:
 - pattern : kafka.coordinator.(\w+)<type=(.+), name=(.+)><>Value
   name: kafka_coordinator_$1_$2_$3
   type: GAUGE
+# Kraft current state info metric rule
+- pattern: "kafka.server<type=raft-metrics><>current-state: ([a-z]+)"
+  name: kafka_server_raft_metrics_current_state_info
+  type: GAUGE
+  value: 1
+  labels:
+    "state": "$1"
+# Kraft specific rules for raft-metrics, raft-channel-metrics, broker-metadata-metrics
+- pattern: kafka.server<type=(.+)><>([a-z-]+)-total
+  name: kafka_server_$1_$2_total
+  type: COUNTER
+- pattern: kafka.server<type=(.+)><>([a-z-]+)
+  name: kafka_server_$1_$2
+  type: GAUGE
 
 # Generic per-second counters with 0-2 key/value pairs
 - pattern: kafka.(\w+)<type=(.+), name=(.+)PerSec\w*, (.+)=(.+), (.+)=(.+)><>Count

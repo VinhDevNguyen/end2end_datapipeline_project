@@ -1,13 +1,12 @@
 global:
-  scrape_interval: 15s
-  scrape_timeout: 10s
-  evaluation_interval: 15s
+  scrape_interval: 60s
+  scrape_timeout: 60s
+  evaluation_interval: 60s
+
 scrape_configs:
 # Set up prometheus to scrape Kafka metrics from kafka exporter
-- job_name: kafka-exporter
+- job_name: kafka-exporter-job
   honor_timestamps: true
-  scrape_interval: 15s
-  scrape_timeout: 10s
   metrics_path: /metrics
   scheme: http
   static_configs:
@@ -16,14 +15,75 @@ scrape_configs:
     - kafka-exporter:9308
 
 # Set up prometheus to scrape Kafka metrics from Kafka jmx-exporter
-- job_name: jmx-exporter
+- job_name: kafka-jmx-exporter-job
   honor_timestamps: true
-  scrape_interval: 60s
-  scrape_timeout: 60s
   metrics_path: /metrics
   scheme: http
   static_configs:
   - targets:
-    # metrics are exposed from brokers through port 9404
-    - kafka-broker-0:9404
-    - kafka-broker-1:9404
+    # metrics are exposed from brokers through port 9094
+    - kafka-broker-0:9094
+    - kafka-broker-1:9094
+
+# Set up prometheus to scrape Kafka connect metrics from Kafka jmx-exporter
+- job_name: kafka-connect-jmx-exporter-job
+  honor_timestamps: true
+  metrics_path: /metrics
+  scheme: http
+  static_configs:
+  - targets:
+    # metrics are exposed from brokers through port 8080
+    - kafka-connect:8080
+
+# Set up prometheus to scrape MinIO cluster metrics
+- job_name: minio-job
+  bearer_token: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJwcm9tZXRoZXVzIiwic3ViIjoiR3RYdVFsckx0S21TV2JtdXJLZDAiLCJleHAiOjQ4NzQ3OTE0Mzd9.miDFlkOvtNtzrbjAncdc0EdhJHhjpJBINDZHnvaH75FJ0ktukN1jfKg9tOeSQ3Krg7ppT1ORY6NN4-8-XQXs9A
+  metrics_path: /minio/v2/metrics/cluster
+  scheme: http
+  static_configs:
+  - targets: ['minio:9000']
+
+
+# Set up prometheus to scrape MinIO node metrics
+- job_name: minio-job-node
+  bearer_token: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJwcm9tZXRoZXVzIiwic3ViIjoiR3RYdVFsckx0S21TV2JtdXJLZDAiLCJleHAiOjQ4NzQ3OTIxMTV9.NZNy1sZmJ2rRUHlDzMgXgWYz48IUYsR4UBg-KFsFuMB-AbHE1wd8FKEOOX02iTiNPSNK2GAWxW7wTvQmgsvxXg
+  metrics_path: /minio/v2/metrics/node
+  scheme: http
+  static_configs:
+  - targets: ['minio:9000']
+
+# Set up prometheus to scrape MinIO bucket metrics
+- job_name: minio-job-bucket
+  bearer_token: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJwcm9tZXRoZXVzIiwic3ViIjoiR3RYdVFsckx0S21TV2JtdXJLZDAiLCJleHAiOjQ4NzQ3OTIxOTl9._NePmlppxngJn3RZqmqnm23pdQXDRqhTO9G9ihs41E5uqCp3feOVpKdhUBVaGfIcukzC33vwT5J55wpcKpYy4Q
+  metrics_path: /minio/v2/metrics/bucket
+  scheme: http
+  static_configs:
+  - targets: ['minio:9000']
+
+# Set up prometheus to scrape MinIO resource metrics
+- job_name: minio-job-resource
+  bearer_token: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJwcm9tZXRoZXVzIiwic3ViIjoiR3RYdVFsckx0S21TV2JtdXJLZDAiLCJleHAiOjQ4NzQ3OTIyNDZ9.Qm5wDN420O40zH51YwYDaAH80dDPXLIhJCXIn_1bVaovXilm1If-mPT-H0THbFUi61gvMT7rXQpHrMaQRRPooA
+  metrics_path: /minio/v2/metrics/resource
+  scheme: http
+  static_configs:
+  - targets: ['minio:9000']
+
+# Set up prometheus to scrape Prometheus resource metrics
+- job_name: prometheus-job
+  honor_timestamps: true
+  metrics_path: /metrics
+  scheme: http
+  static_configs:
+  - targets:
+    # metrics is exposed through port 9090
+    - localhost:9090
+
+# Set up prometheus to scrape Grafana resource metrics
+- job_name: grafana-job
+  honor_timestamps: true
+  metrics_path: /metrics
+  scheme: http
+  static_configs:
+  - targets:
+    # metrics is exposed through port 9090
+    - grafana:3000

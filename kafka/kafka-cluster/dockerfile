@@ -1,0 +1,10 @@
+FROM bitnami/kafka
+
+# Define JMX agent jar version
+ENV JMX_AGENT_VERSION=1.0.1
+# Install javaagent from maven repo
+RUN mkdir /opt/etc && cd /opt/etc &&\
+        curl -so jmx_prometheus_javaagent.jar \
+        https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/$JMX_AGENT_VERSION/jmx_prometheus_javaagent-$JMX_AGENT_VERSION.jar
+# Copy jmx-exporter config file to image
+COPY jmx-exporter/config.yml /opt/etc/config.yml

@@ -184,6 +184,7 @@ services:
     networks:
       - kafka-debezium-postgresql
       - kafka-spark-code-server
+      - kafka-connect-metrics
     # Change default entrypoint to /bin/bash
     entrypoint: /bin/bash
     # Adding command to run init scripts
@@ -199,7 +200,9 @@ services:
   # Service for Kafka - Kafka broker 0
   kafka-broker-0:
     container_name: kafka-broker-0
-    image: bitnami/kafka
+    build: 
+      context: ./kafka/kafka-cluster 
+      dockerfile: dockerfile
     # Connect to kafka-cluster network
     networks:
       - kafka-cluster
@@ -209,11 +212,9 @@ services:
     # Add volume for kafka data
     volumes:
       - kafka_0_data:/bitnami/kafka
-      # Mount jmx jar agent and config to kafka
-      - ./jmx-exporter/kafka:/opt/jmx-exporter
     # Environment file
     env_file:
-      - ./kafka/broker-0/config/development.env
+      - ./kafka/kafka-cluster/broker-0/config/development.env
     healthcheck:
       test: "bash -c 'printf \"\" > /dev/tcp/127.0.0.1/9092; exit $$?;'"
       interval: 5s
@@ -224,7 +225,9 @@ services:
   # Services for kafka - Kafka broker 1
   kafka-broker-1:
     container_name: kafka-broker-1
-    image: bitnami/kafka
+    build: 
+      context: ./kafka/kafka-cluster 
+      dockerfile: dockerfile
     # Connect to kafka-cluster network
     networks:
       - kafka-cluster
@@ -234,10 +237,8 @@ services:
     volumes:
       # Add volume for kafka data
       - kafka_1_data:/bitnami/kafka
-      # Mount jmx jar agent and config to kafka
-      - ./jmx-exporter/kafka:/opt/jmx-exporter
     env_file:
-      - ./kafka/broker-1/config/development.env
+      - ./kafka/kafka-cluster/broker-1/config/development.env
     healthcheck:
       test: "bash -c 'printf \"\" > /dev/tcp/127.0.0.1/9092; exit $$?;'"
       interval: 5s
@@ -260,6 +261,8 @@ services:
       - kafka-broker-1
     env_file:
       - ./kafka/schema-registry/config/development.env
+    volumes:
+      - kafka-schema-registry-data:/bitnami
 
   #Kafka ui service
   kafka-ui:
@@ -585,6 +588,8 @@ services:
       - prom_data:/prometheus
     networks:
       - kafka-metrics
+      - minio-metrics
+      - kafka-connect-metrics
       - prometheus-grafana
     healthcheck:
       test: wget --no-verbose --tries=1 --spider localhost:9090 || exit 1
@@ -627,6 +632,7 @@ services:
     command: server /data --console-address ":9001"
     networks:
       - minio
+      - minio-metrics
 
 networks:
   postgre-pgadmin:
@@ -653,6 +659,10 @@ networks:
     driver: bridge
   minio:
     driver: bridge
+  minio-metrics:
+    driver: bridge
+  kafka-connect-metrics:
+    driver: bridge
 
 volumes:
   pgadmin-data:
@@ -664,4 +674,6 @@ volumes:
   kafka_1_data:
     driver: local
   prom_data:
+    driver: local
+  kafka-schema-registry-data:
     driver: local

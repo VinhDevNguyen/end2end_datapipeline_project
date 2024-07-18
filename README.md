@@ -6,7 +6,7 @@ Docker compose services get all environment variables from their corresponding d
 Please execute this command to copy all services example.env files to development.env files
 
 ```bash
-make copy_env_files
+make copy_exam_to_dev_env_files
 ```
 
 ## Run docker compose
