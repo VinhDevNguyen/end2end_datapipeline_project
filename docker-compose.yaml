@@ -20,6 +20,7 @@ services:
       - postgre-app
       - airflow
       - kafka-debezium-postgresql
+      - postgre-metrics
     # Get environment from development.env
     env_file:
       - ./postgres/config/development.env
@@ -555,6 +556,17 @@ services:
         condition: service_healthy
 
   #Services for metrics and reporters (Prometheus and grafana)
+  
+  # Service for postgresql exporter
+  postgresql-exporter:
+    image: wrouesnel/postgres_exporter:v0.8.0
+    container_name: postgres-exporter
+    env_file:
+      - ./postgres-exporter/config/development.env
+    depends_on:
+      - postgres-db
+    networks:
+      - postgre-metrics
 
   #Services to export kafka metrics
   kafka-exporter:
@@ -590,7 +602,9 @@ services:
       - kafka-metrics
       - minio-metrics
       - kafka-connect-metrics
+      - postgre-metrics
       - prometheus-grafana
+
     healthcheck:
       test: wget --no-verbose --tries=1 --spider localhost:9090 || exit 1
       interval: 5s
@@ -662,6 +676,8 @@ networks:
   minio-metrics:
     driver: bridge
   kafka-connect-metrics:
+    driver: bridge
+  postgre-metrics:
     driver: bridge
 
 volumes:

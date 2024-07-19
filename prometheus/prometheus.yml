@@ -87,3 +87,11 @@ scrape_configs:
   - targets:
     # metrics is exposed through port 9090
     - grafana:3000
+
+# Set up prometheus to scrape postgresql resource metrics
+- job_name: postgres-job
+  metrics_path: /metrics
+  scheme: http
+  static_configs:
+    - targets: 
+      - postgresql-exporter:9187
