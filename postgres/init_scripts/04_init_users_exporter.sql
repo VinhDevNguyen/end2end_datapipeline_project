@@ -19,7 +19,7 @@ SELECT __tmp_create_user();
 DROP FUNCTION __tmp_create_user();
 
 ALTER USER postgres_exporter WITH PASSWORD 'password';
-ALTER USER postgres_exporter SET SEARCH_PATH TO postgres_exporter,pg_catalog;
+ALTER USER postgres_exporter SET SEARCH_PATH TO postgres_exporter,pg_catalog,public;
 
 GRANT CONNECT ON DATABASE postgres TO postgres_exporter;
 

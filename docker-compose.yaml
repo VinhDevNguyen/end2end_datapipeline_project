@@ -559,10 +559,15 @@ services:
   
   # Service for postgresql exporter
   postgresql-exporter:
-    image: wrouesnel/postgres_exporter:v0.8.0
+    image: prometheuscommunity/postgres-exporter:v0.15.0
     container_name: postgres-exporter
     env_file:
       - ./postgres-exporter/config/development.env
+    # Add flag to also include stat_statements, postmaster metrics
+    # For more information, please refer to https://github.com/prometheus-community/postgres_exporter
+    command:
+      - "--collector.stat_statements"
+      - "--collector.postmaster"
     depends_on:
       - postgres-db
     networks:
@@ -592,7 +597,10 @@ services:
     container_name: prometheus
     # Adding config file 
     command:
+      # Set config file path
       - '--config.file=/etc/prometheus/prometheus.yml'
+      # For more information, check https://prometheus.io/docs/prometheus/latest/storage/#operational-aspects
+      - '--storage.tsdb.retention.time=2d'
     ports:
       - 9090:9090
     volumes:
