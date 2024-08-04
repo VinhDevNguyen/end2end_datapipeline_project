@@ -76,31 +76,6 @@ services:
     entrypoint: >
       sh -c " cp -f /pgadmin4/pgpass /var/lib/pgadmin; chmod 600 /var/lib/pgadmin/pgpass; /entrypoint.sh "
 
-  # # Service for python application
-  # python-application:
-  #   # Container name
-  #   container_name: python-application
-
-  #   # Build context 
-  #   build:
-  #     context: ./python-application
-  #     dockerfile: dockerfile
-
-  #   # Get environment from development.env
-  #   env_file:
-  #     - ./python-application/config/development.env
-
-  #   #Set restart to always
-  #   restart: always
-
-  #   # Share container network with postgres-db through postgre-app
-  #   networks:
-  #     - postgre-app
-
-  #   #Mount volume
-  #   volumes:
-  #     - ./python-application:/app:bind
-
   # Service for spark master node
   spark-master:
     # Container name
@@ -135,24 +110,6 @@ services:
     depends_on:
       - spark-master
     # Share container network with spark cluster through spark-cluster
-    networks:
-      - spark-cluster
-      - spark-hadoop
-      - kafka-spark-code-server
-
-  # Service for development environment
-  code-server:
-    container_name: code-server
-    build:
-      context: ./code_server
-      dockerfile: dockerfile
-    environment:
-      - ./code_server/config/development.env
-    volumes:
-      - ./:/workspace
-    ports:
-      - 8443:8443
-    restart: unless-stopped
     networks:
       - spark-cluster
       - spark-hadoop
@@ -283,6 +240,38 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  # Service for code-server
+  code-server:
+    build: 
+      context: ./code-server
+      dockerfile: Dockerfile
+    container_name: code-server
+    volumes:
+      - "./code-server/.config/code-server/config.yaml:/root/.config/code-server/config.yaml"
+      - "./src/:/home/coder/project"
+    stdin_open: true
+    tty: true
+    networks:
+      - spark-cluster
+      - spark-hadoop
+      - kafka-spark-code-server
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "./nginx/code-server.conf:/etc/nginx/conf.d/default.conf"
+      - "./nginx/certs:/etc/ssl/certs"
+    depends_on:
+      - code-server
+    networks:
+      - spark-cluster
+      - spark-hadoop
+      - kafka-spark-code-server
 
   # Services for airflow
   # All services should depends on Postgresql, Redis health status
