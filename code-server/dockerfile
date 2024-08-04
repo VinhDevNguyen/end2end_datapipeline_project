@@ -1,0 +1,48 @@
+FROM codercom/code-server:ubuntu
+# Use user root
+USER root 
+
+# Install software-properties-common, then python 3.11, pip, jupyter notebook, and pyspark
+# To prevent interactive dialogs
+ENV TZ=Europe \
+    DEBIAN_FRONTEND=noninteractive
+
+# Update and install necessary packages
+RUN apt-get update \
+# Install necessary packages to allow compilation of source code
+    && apt-get install -y --no-install-recommends \
+    tzdata \
+    build-essential \
+    checkinstall \
+    libreadline-gplv2-dev \
+    libncursesw5-dev \
+    libssl-dev \
+    libsqlite3-dev \
+    tk-dev \
+    libgdbm-dev \
+    libc6-dev \
+    libbz2-dev \
+    software-properties-common \
+# Install python 3.11
+    && apt-get update \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get install -y --no-install-recommends \
+    python3.11
+# Install pip for Python 3.11
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
+
+RUN pip3 install jupyter
+RUN pip3 install pyspark
+
+# Install java for running pyspark
+RUN apt-get install -y openjdk-8-jdk
+
+# Install some vscode extensions for vscode jupyter and python
+RUN code-server \
+    --install-extension ms-toolsai.vscode-jupyter-slideshow \
+    --install-extension ms-toolsai.jupyter-renderers \
+    --install-extension ms-toolsai.jupyter-keymap \
+    --install-extension ms-toolsai.vscode-jupyter-cell-tags \
+    --install-extension ms-toolsai.jupyter \
+    --install-extension ms-python.debugpy \
+    --install-extension ms-python.python

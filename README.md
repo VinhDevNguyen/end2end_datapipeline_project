@@ -19,3 +19,7 @@ make up
 ```powershell
 .\copy_env.ps1
 ```
+
+## Serve code-server with https
+- Add crt and key file into `nginx/certs` directory
+- Change domain name into `nginx/nginx.conf` file
