@@ -169,4 +169,8 @@ cython_debug/
 # Ignore data folder in minio
 minio/data
 
+# Ignore data folder
 data/
+
+# Ignore any certs folder in workspace
+certs/
